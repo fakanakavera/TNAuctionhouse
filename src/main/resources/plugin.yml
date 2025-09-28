@@ -1,0 +1,58 @@
+name: TNauctionhouse
+version: 1.0.0-SNAPSHOT
+main: com.tnauctionhouse.TNAuctionHousePlugin
+api-version: '1.21'
+depend:
+  - Vault
+softdepend:
+  - MMOItems
+
+commands:
+  sellorder:
+    description: Create a sell order with the item in hand.
+    usage: /<command> <price> [amount]
+    permission: tnauctionhouse.sellorder
+  buyorder:
+    description: Create a buy order for the item in hand.
+    usage: /<command> <price> <amount>
+    permission: tnauctionhouse.buyorder
+  sellorders:
+    description: Open the sell orders browser.
+    usage: /<command> [search <query>]
+    permission: tnauctionhouse.sellorders
+  buyorders:
+    description: Open the buy orders browser.
+    usage: /<command> [search <query>]
+    permission: tnauctionhouse.buyorders
+  myorders:
+    description: Open your active buy and sell orders to cancel.
+    usage: /<command>
+    permission: tnauctionhouse.myorders
+  withdrawitems:
+    description: Withdraw items from fulfilled buy orders.
+    usage: /<command>
+    permission: tnauctionhouse.withdrawitems
+  auctionhouse:
+    description: Search auction house listings
+    usage: /<command> search <query> [sell|buy]
+    permission: tnauctionhouse.auctionhouse
+    aliases: [ah]
+
+permissions:
+  tnauctionhouse.sellorder:
+    default: true
+  tnauctionhouse.buyorder:
+    default: true
+  tnauctionhouse.sellorders:
+    default: true
+  tnauctionhouse.buyorders:
+    default: true
+  tnauctionhouse.bypass.self:
+    default: op
+  tnauctionhouse.withdrawitems:
+    default: true
+  tnauctionhouse.myorders:
+    default: true
+  tnauctionhouse.auctionhouse:
+    default: true
+

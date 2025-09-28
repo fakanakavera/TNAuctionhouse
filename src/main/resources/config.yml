@@ -1,0 +1,31 @@
+# TNauctionhouse Configuration
+#
+# Commands:
+# /sellorder <price> [amount]
+# /buyorder <price> <amount>
+# /sellorders
+# /buyorders
+# /withdraworder  (alias: /withdrawitems)
+# /ah search <query> [sell|buy]
+
+tax:
+  # Enable or disable tax completely
+  enabled: true
+  # Tax rate as a decimal (e.g., 0.10 = 10%)
+  rate: 0.10
+  # How to apply the tax for sell orders:
+  # - UPFRONT: Charge the seller when listing the order (fee is removed immediately)
+  # - ADD_TO_PRICE: Add tax on top of the listed price; buyer pays it and seller receives the base price
+  mode: ADD_TO_PRICE
+
+
+# Separate tax configuration for buy orders (placing buy orders)
+# Works similarly to the sell tax but applies to buyers who create buy orders.
+# In both modes, the buyer pays the tax as a fee; sellers receive the base price per unit.
+buy_tax:
+  enabled: true
+  rate: 0.10
+  # Modes kept for parity; fee is collected at order creation time.
+  mode: UPFRONT
+
+
