@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,7 +29,7 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Build
-        run: mvn -B -q -DskipTests package
+        run: mvn -B -DskipTests package
 
       - name: Create GitHub Release
         id: create_release
@@ -35,7 +37,8 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            target/TNauctionhouse-*.jar
+            target/*.jar
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
