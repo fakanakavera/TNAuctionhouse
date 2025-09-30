@@ -3,7 +3,7 @@
 
   <groupId>com.tnauctionhouse</groupId>
   <artifactId>TNauctionhouse</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>0.1.1</version>
   <name>TNauctionhouse</name>
   <description>Buy/Sell orders for Paper 1.21.4</description>
   <url>https://example.com/TNauctionhouse</url>
