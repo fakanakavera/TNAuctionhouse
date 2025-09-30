@@ -1,14 +1,14 @@
 package com.tnauctionhouse.commands;
 
 import org.mockbukkit.mockbukkit.MockBukkit;
-import org.mockbukkit.mockbukkit.ServerMock;
 import org.mockbukkit.mockbukkit.command.ConsoleCommandSenderMock;
-import org.mockbukkit.mockbukkit.entity.PlayerMock;
 import com.tnauctionhouse.TNAuctionHousePlugin;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,6 @@ import static org.mockito.Mockito.when;
 
 public class SellOrderCreateCommandTest {
 
-	private ServerMock server;
     private TNAuctionHousePlugin plugin;
     private SellOrderCreateCommand command;
     private YamlConfiguration config;
@@ -28,8 +27,7 @@ public class SellOrderCreateCommandTest {
 
     @BeforeEach
     void setUp() {
-        server = MockBukkit.mock();
-
+        MockBukkit.mock();
         plugin = Mockito.mock(TNAuctionHousePlugin.class, Mockito.RETURNS_DEEP_STUBS);
         config = new YamlConfiguration();
         // Default tax config
@@ -60,99 +58,123 @@ public class SellOrderCreateCommandTest {
 
     @Test
     void missingPermission() {
-        PlayerMock player = server.addPlayer();
-        // Ensure player does NOT have the permission
-        player.setOp(false);
+        Player player = Mockito.mock(Player.class, Mockito.RETURNS_DEEP_STUBS);
+        when(player.hasPermission("tnauctionhouse.sellorder")).thenReturn(false);
 
         boolean result = command.onCommand(player, null, "sellorder", new String[] {"10"});
         assertEquals(true, result);
-        assertEquals("You don't have permission.", player.nextMessage());
-        assertNull(player.nextMessage());
+        Mockito.verify(player).sendMessage("You don't have permission.");
     }
 
     @Test
     void emptyHandError() {
-        PlayerMock player = server.addPlayer();
-        // Give permission
-        player.setOp(true);
+        Player player = Mockito.mock(Player.class, Mockito.RETURNS_DEEP_STUBS);
+        when(player.hasPermission("tnauctionhouse.sellorder")).thenReturn(true);
+        PlayerInventory inv = Mockito.mock(PlayerInventory.class);
+        when(player.getInventory()).thenReturn(inv);
+        ItemStack hand = Mockito.mock(ItemStack.class, Mockito.RETURNS_DEEP_STUBS);
+        when(hand.getType()).thenReturn(Material.AIR);
+        when(inv.getItemInMainHand()).thenReturn(hand);
 
         boolean result = command.onCommand(player, null, "sellorder", new String[] {"10"});
         assertEquals(true, result);
-        assertEquals("Hold an item to sell.", player.nextMessage());
-        assertNull(player.nextMessage());
+        Mockito.verify(player).sendMessage("Hold an item to sell.");
     }
 
     @Test
     void missingPriceArgShowsUsage() {
-        PlayerMock player = server.addPlayer();
-        player.setOp(true);
-        // Put an item in hand
-        player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND, 3));
+        Player player = Mockito.mock(Player.class, Mockito.RETURNS_DEEP_STUBS);
+        when(player.hasPermission("tnauctionhouse.sellorder")).thenReturn(true);
+        PlayerInventory inv = Mockito.mock(PlayerInventory.class);
+        when(player.getInventory()).thenReturn(inv);
+        ItemStack hand = Mockito.mock(ItemStack.class, Mockito.RETURNS_DEEP_STUBS);
+        when(hand.getType()).thenReturn(Material.DIAMOND);
+        when(hand.getAmount()).thenReturn(3);
+        when(inv.getItemInMainHand()).thenReturn(hand);
 
         boolean result = command.onCommand(player, null, "sellorder", new String[] {});
         assertEquals(true, result);
-        assertEquals("Usage: /sellorder <price> [amount]", player.nextMessage());
-        assertNull(player.nextMessage());
+        Mockito.verify(player).sendMessage("Usage: /sellorder <price> [amount]");
     }
 
     @Test
     void invalidPrice() {
-        PlayerMock player = server.addPlayer();
-        player.setOp(true);
-        player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND, 3));
+        Player player = Mockito.mock(Player.class, Mockito.RETURNS_DEEP_STUBS);
+        when(player.hasPermission("tnauctionhouse.sellorder")).thenReturn(true);
+        PlayerInventory inv = Mockito.mock(PlayerInventory.class);
+        when(player.getInventory()).thenReturn(inv);
+        ItemStack hand = Mockito.mock(ItemStack.class, Mockito.RETURNS_DEEP_STUBS);
+        when(hand.getType()).thenReturn(Material.DIAMOND);
+        when(hand.getAmount()).thenReturn(3);
+        when(inv.getItemInMainHand()).thenReturn(hand);
 
         boolean result = command.onCommand(player, null, "sellorder", new String[] {"abc"});
         assertEquals(true, result);
-        assertEquals("Invalid price.", player.nextMessage());
-        assertNull(player.nextMessage());
+        Mockito.verify(player).sendMessage("Invalid price.");
     }
 
     @Test
     void nonPositivePrice() {
-        PlayerMock player = server.addPlayer();
-        player.setOp(true);
-        player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND, 3));
+        Player player = Mockito.mock(Player.class, Mockito.RETURNS_DEEP_STUBS);
+        when(player.hasPermission("tnauctionhouse.sellorder")).thenReturn(true);
+        PlayerInventory inv = Mockito.mock(PlayerInventory.class);
+        when(player.getInventory()).thenReturn(inv);
+        ItemStack hand = Mockito.mock(ItemStack.class, Mockito.RETURNS_DEEP_STUBS);
+        when(hand.getType()).thenReturn(Material.DIAMOND);
+        when(hand.getAmount()).thenReturn(3);
+        when(inv.getItemInMainHand()).thenReturn(hand);
 
         boolean resultZero = command.onCommand(player, null, "sellorder", new String[] {"0"});
         assertEquals(true, resultZero);
-        assertEquals("Price must be > 0.", player.nextMessage());
-        assertNull(player.nextMessage());
+        Mockito.verify(player).sendMessage("Price must be > 0.");
     }
 
     @Test
     void invalidAmount() {
-        PlayerMock player = server.addPlayer();
-        player.setOp(true);
-        player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND, 3));
+        Player player = Mockito.mock(Player.class, Mockito.RETURNS_DEEP_STUBS);
+        when(player.hasPermission("tnauctionhouse.sellorder")).thenReturn(true);
+        PlayerInventory inv = Mockito.mock(PlayerInventory.class);
+        when(player.getInventory()).thenReturn(inv);
+        ItemStack hand = Mockito.mock(ItemStack.class, Mockito.RETURNS_DEEP_STUBS);
+        when(hand.getType()).thenReturn(Material.DIAMOND);
+        when(hand.getAmount()).thenReturn(3);
+        when(inv.getItemInMainHand()).thenReturn(hand);
 
         boolean result = command.onCommand(player, null, "sellorder", new String[] {"10", "foo"});
         assertEquals(true, result);
-        assertEquals("Invalid amount.", player.nextMessage());
-        assertNull(player.nextMessage());
+        Mockito.verify(player).sendMessage("Invalid amount.");
     }
 
     @Test
     void nonPositiveAmount() {
-        PlayerMock player = server.addPlayer();
-        player.setOp(true);
-        player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND, 3));
+        Player player = Mockito.mock(Player.class, Mockito.RETURNS_DEEP_STUBS);
+        when(player.hasPermission("tnauctionhouse.sellorder")).thenReturn(true);
+        PlayerInventory inv = Mockito.mock(PlayerInventory.class);
+        when(player.getInventory()).thenReturn(inv);
+        ItemStack hand = Mockito.mock(ItemStack.class, Mockito.RETURNS_DEEP_STUBS);
+        when(hand.getType()).thenReturn(Material.DIAMOND);
+        when(hand.getAmount()).thenReturn(3);
+        when(inv.getItemInMainHand()).thenReturn(hand);
 
         boolean result = command.onCommand(player, null, "sellorder", new String[] {"10", "0"});
         assertEquals(true, result);
-        assertEquals("Amount must be > 0.", player.nextMessage());
-        assertNull(player.nextMessage());
+        Mockito.verify(player).sendMessage("Amount must be > 0.");
     }
 
     @Test
     void amountGreaterThanInHand() {
-        PlayerMock player = server.addPlayer();
-        player.setOp(true);
-        player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND, 3));
+        Player player = Mockito.mock(Player.class, Mockito.RETURNS_DEEP_STUBS);
+        when(player.hasPermission("tnauctionhouse.sellorder")).thenReturn(true);
+        PlayerInventory inv = Mockito.mock(PlayerInventory.class);
+        when(player.getInventory()).thenReturn(inv);
+        ItemStack hand = Mockito.mock(ItemStack.class, Mockito.RETURNS_DEEP_STUBS);
+        when(hand.getType()).thenReturn(Material.DIAMOND);
+        when(hand.getAmount()).thenReturn(3);
+        when(inv.getItemInMainHand()).thenReturn(hand);
 
         boolean result = command.onCommand(player, null, "sellorder", new String[] {"10", "5"});
         assertEquals(true, result);
-        assertEquals("You don't have that many items.", player.nextMessage());
-        assertNull(player.nextMessage());
+        Mockito.verify(player).sendMessage("You don't have that many items.");
     }
 
     @Test
@@ -162,17 +184,21 @@ public class SellOrderCreateCommandTest {
         config.set("tax.mode", "UPFRONT");
         config.set("tax.rate", 0.10);
 
-        PlayerMock player = server.addPlayer();
-        player.setOp(true);
-        player.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND, 1));
+        Player player = Mockito.mock(Player.class, Mockito.RETURNS_DEEP_STUBS);
+        when(player.hasPermission("tnauctionhouse.sellorder")).thenReturn(true);
+        PlayerInventory inv = Mockito.mock(PlayerInventory.class);
+        when(player.getInventory()).thenReturn(inv);
+        ItemStack hand = Mockito.mock(ItemStack.class, Mockito.RETURNS_DEEP_STUBS);
+        when(hand.getType()).thenReturn(Material.DIAMOND);
+        when(hand.getAmount()).thenReturn(1);
+        when(inv.getItemInMainHand()).thenReturn(hand);
 
         // Player cannot afford upfront fee (price=10, amount=1, fee=1.0)
         when(economy.has(player, 1.0)).thenReturn(false);
 
         boolean result = command.onCommand(player, null, "sellorder", new String[] {"10", "1"});
         assertEquals(true, result);
-        assertEquals("You don't have enough money to pay the listing fee ($1.0).", player.nextMessage());
-        assertNull(player.nextMessage());
+        Mockito.verify(player).sendMessage("You don't have enough money to pay the listing fee ($1.0).");
     }
 }
 

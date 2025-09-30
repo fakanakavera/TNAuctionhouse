@@ -7,6 +7,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.Material;
 
 public class SellOrderCreateCommand implements CommandExecutor {
 
@@ -30,7 +31,7 @@ public class SellOrderCreateCommand implements CommandExecutor {
         }
 
         ItemStack hand = player.getInventory().getItemInMainHand();
-        if (hand == null || hand.getType().isAir()) {
+        if (hand == null || isAirMaterial(hand.getType())) {
             player.sendMessage("Hold an item to sell.");
             return true;
         }
@@ -109,6 +110,13 @@ public class SellOrderCreateCommand implements CommandExecutor {
 
 		player.sendMessage("Created sell order: " + amount + "x for $" + pricePerUnitEffective + " each.");
         return true;
+    }
+
+    private boolean isAirMaterial(Material material) {
+        if (material == null) {
+            return true;
+        }
+        return material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR;
     }
 }
 
