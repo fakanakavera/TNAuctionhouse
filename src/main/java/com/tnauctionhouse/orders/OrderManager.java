@@ -191,7 +191,8 @@ public class OrderManager {
 			cfg.set(base + ".pricePerUnit", order.getPricePerUnit());
             cfg.set(base + ".amount", order.getAmount());
             cfg.set(base + ".createdAt", order.getCreatedAt());
-            cfg.set(base + ".item", order.getItem());
+            // Serialize ItemStack to a neutral map to avoid implementation-specific class names
+            cfg.set(base + ".item", order.getItem().serialize());
         }
 
 		for (BuyOrder order : buyOrders) {
@@ -201,11 +202,23 @@ public class OrderManager {
             cfg.set(base + ".amount", order.getAmount());
             cfg.set(base + ".createdAt", order.getCreatedAt());
 			cfg.set(base + ".escrowTotal", order.getEscrowTotal());
-            cfg.set(base + ".templateItem", order.getTemplateItem());
+            cfg.set(base + ".templateItem", order.getTemplateItem().serialize());
         }
 
         for (Map.Entry<UUID, List<ItemStack>> entry : pendingDeliveries.entrySet()) {
-            cfg.set("pendingDeliveries." + entry.getKey(), entry.getValue());
+            // Preferred: list of serialized maps
+            List<Map<String, Object>> serialized = new ArrayList<>(entry.getValue().size());
+            for (ItemStack it : entry.getValue()) serialized.add(it.serialize());
+            cfg.set("pendingDeliveries." + entry.getKey(), serialized);
+
+            // Also: numeric-keyed simple fields (type/amount) for extra compatibility
+            List<ItemStack> list = entry.getValue();
+            for (int i = 0; i < list.size(); i++) {
+                ItemStack it = list.get(i);
+                String base = "pendingDeliveries." + entry.getKey() + "." + i;
+                cfg.set(base + ".type", it.getType().name());
+                cfg.set(base + ".amount", it.getAmount());
+            }
         }
 
         cfg.save(file);
@@ -218,6 +231,7 @@ public class OrderManager {
         if (!file.exists()) return;
 
         YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+        try { System.out.println("[OrderManager] DEBUG load file=" + file.getAbsolutePath()); } catch (Throwable ignored) {}
 
 		ConfigurationSection sellSec = cfg.getConfigurationSection("sellOrders");
         if (sellSec != null) {
@@ -225,10 +239,52 @@ public class OrderManager {
                 try {
                     UUID orderId = UUID.fromString(key);
                     UUID sellerId = UUID.fromString(sellSec.getString(key + ".sellerId"));
-					int price = sellSec.getInt(key + ".pricePerUnit");
+                    int price = sellSec.getInt(key + ".pricePerUnit");
                     int amount = sellSec.getInt(key + ".amount");
                     long createdAt = sellSec.getLong(key + ".createdAt");
-                    ItemStack item = sellSec.getItemStack(key + ".item");
+                    Object node = sellSec.get(key + ".item");
+                    ItemStack item = null;
+                    try {
+                        if (node instanceof ItemStack) {
+                            item = ((ItemStack) node).clone();
+                        } else if (node instanceof java.util.Map) {
+                            @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) node;
+                            item = ItemStack.deserialize(map);
+                        } else if (node instanceof org.bukkit.configuration.ConfigurationSection) {
+                            org.bukkit.configuration.ConfigurationSection sec = (org.bukkit.configuration.ConfigurationSection) node;
+                            item = ItemStack.deserialize(sec.getValues(true));
+                        }
+                    } catch (Exception ex) {
+                        item = null;
+                    }
+                    if (item == null) {
+                        // Fallback: attempt minimal reconstruction from type/amount
+                        Object raw = sellSec.get(key + ".item");
+                        if (raw instanceof Map) {
+                            @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) raw;
+                            Object t = map.get("type");
+                            Object a = map.get("amount");
+                            if (t instanceof String) {
+                                try {
+                                    org.bukkit.Material mat = org.bukkit.Material.valueOf((String) t);
+                                    int amt = (a instanceof Number) ? ((Number) a).intValue() : 1;
+                                    if (amt <= 0) amt = 1;
+                                    item = new ItemStack(mat, amt);
+                                } catch (IllegalArgumentException ignored2) {}
+                            }
+                        } else if (raw instanceof org.bukkit.configuration.ConfigurationSection) {
+                            org.bukkit.configuration.ConfigurationSection sec = (org.bukkit.configuration.ConfigurationSection) raw;
+                            String typeName = sec.getString("type");
+                            int amt = sec.getInt("amount", 1);
+                            if (amt <= 0) amt = 1;
+                            if (typeName != null) {
+                                try {
+                                    org.bukkit.Material mat = org.bukkit.Material.valueOf(typeName);
+                                    item = new ItemStack(mat, amt);
+                                } catch (IllegalArgumentException ignored2) {}
+                            }
+                        }
+                    }
                     if (item == null) continue;
                     sellOrders.add(new SellOrder(orderId, sellerId, item, price, amount, createdAt));
                 } catch (Exception ignored) {
@@ -242,11 +298,53 @@ public class OrderManager {
                 try {
                     UUID orderId = UUID.fromString(key);
                     UUID buyerId = UUID.fromString(buySec.getString(key + ".buyerId"));
-					int price = buySec.getInt(key + ".pricePerUnit");
+                    int price = buySec.getInt(key + ".pricePerUnit");
                     int amount = buySec.getInt(key + ".amount");
                     long createdAt = buySec.getLong(key + ".createdAt");
-					int escrowTotal = buySec.getInt(key + ".escrowTotal");
-                    ItemStack tpl = buySec.getItemStack(key + ".templateItem");
+                    int escrowTotal = buySec.getInt(key + ".escrowTotal");
+                    Object node = buySec.get(key + ".templateItem");
+                    ItemStack tpl = null;
+                    try {
+                        if (node instanceof ItemStack) {
+                            tpl = ((ItemStack) node).clone();
+                        } else if (node instanceof java.util.Map) {
+                            @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) node;
+                            tpl = ItemStack.deserialize(map);
+                        } else if (node instanceof org.bukkit.configuration.ConfigurationSection) {
+                            org.bukkit.configuration.ConfigurationSection sec = (org.bukkit.configuration.ConfigurationSection) node;
+                            tpl = ItemStack.deserialize(sec.getValues(true));
+                        }
+                    } catch (Exception ex) {
+                        tpl = null;
+                    }
+                    if (tpl == null) {
+                        // Fallback minimal reconstruction
+                        Object raw = buySec.get(key + ".templateItem");
+                        if (raw instanceof Map) {
+                            @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) raw;
+                            Object t = map.get("type");
+                            Object a = map.get("amount");
+                            if (t instanceof String) {
+                                try {
+                                    org.bukkit.Material mat = org.bukkit.Material.valueOf((String) t);
+                                    int amt = (a instanceof Number) ? ((Number) a).intValue() : 1;
+                                    if (amt <= 0) amt = 1;
+                                    tpl = new ItemStack(mat, amt);
+                                } catch (IllegalArgumentException ignored2) {}
+                            }
+                        } else if (raw instanceof org.bukkit.configuration.ConfigurationSection) {
+                            org.bukkit.configuration.ConfigurationSection sec = (org.bukkit.configuration.ConfigurationSection) raw;
+                            String typeName = sec.getString("type");
+                            int amt = sec.getInt("amount", 1);
+                            if (amt <= 0) amt = 1;
+                            if (typeName != null) {
+                                try {
+                                    org.bukkit.Material mat = org.bukkit.Material.valueOf(typeName);
+                                    tpl = new ItemStack(mat, amt);
+                                } catch (IllegalArgumentException ignored2) {}
+                            }
+                        }
+                    }
                     if (tpl == null) continue;
                     buyOrders.add(new BuyOrder(orderId, buyerId, tpl, price, amount, createdAt, escrowTotal));
                 } catch (Exception ignored) {
@@ -256,16 +354,124 @@ public class OrderManager {
 
         ConfigurationSection delSec = cfg.getConfigurationSection("pendingDeliveries");
         if (delSec != null) {
-            for (String key : delSec.getKeys(false)) {
+            try { System.out.println("[OrderManager] DEBUG pendingDeliveries keys=" + delSec.getKeys(false)); } catch (Throwable ignored) {}
+            for (String userKey : delSec.getKeys(false)) {
                 try {
-                    UUID userId = UUID.fromString(key);
-                    List<?> raw = delSec.getList(key);
-                    if (raw == null) continue;
+                    UUID userId = UUID.fromString(userKey);
                     List<ItemStack> items = new ArrayList<>();
-                    for (Object obj : raw) {
-                        if (obj instanceof ItemStack) items.add(((ItemStack) obj).clone());
+
+                    // Try map-list at top level (preferred when created by Bukkit serialize())
+                    List<Map<?, ?>> mapList = delSec.getMapList(userKey);
+                    if (mapList != null && !mapList.isEmpty()) {
+                        for (Map<?, ?> m : mapList) {
+                            try {
+                                @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) m;
+                                try {
+                                    items.add(ItemStack.deserialize(map));
+                                } catch (Exception ex) {
+                                    // Fallback: only use type/amount
+                                    Object t = map.get("type");
+                                    Object a = map.get("amount");
+                                    if (t instanceof String && a instanceof Number) {
+                                        try {
+                                            org.bukkit.Material mat = org.bukkit.Material.valueOf((String) t);
+                                            items.add(new ItemStack(mat, ((Number) a).intValue()));
+                                        } catch (IllegalArgumentException ignored3) {}
+                                    }
+                                }
+                            } catch (Exception ignored2) {}
+                        }
                     }
-                    if (!items.isEmpty()) pendingDeliveries.put(userId, items);
+
+                    // Try list node under the section (some YAML writers nest lists under UUID key)
+                    if (items.isEmpty()) {
+                        Object maybeList = delSec.get(userKey);
+                        if (maybeList instanceof java.util.List) {
+                            for (Object obj : (java.util.List<?>) maybeList) {
+                                if (obj instanceof Map) {
+                                    @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) obj;
+                                    try { items.add(ItemStack.deserialize(map)); } catch (Exception ex) {
+                                        Object t = map.get("type");
+                                        Object a = map.get("amount");
+                                        if (t instanceof String && a instanceof Number) {
+                                            try {
+                                                org.bukkit.Material mat = org.bukkit.Material.valueOf((String) t);
+                                                items.add(new ItemStack(mat, ((Number) a).intValue()));
+                                            } catch (IllegalArgumentException ignored3) {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Try numeric-keyed fallback (type/amount) nested under UUID
+                    if (items.isEmpty()) {
+                        ConfigurationSection itemsSec = delSec.getConfigurationSection(userKey);
+                        if (itemsSec != null) {
+                            for (String idxKey : itemsSec.getKeys(false)) {
+                                ConfigurationSection node = itemsSec.getConfigurationSection(idxKey);
+                                String typeName;
+                                int amount;
+                                if (node != null) {
+                                    typeName = node.getString("type");
+                                    amount = node.getInt("amount", 0);
+                                } else {
+                                    typeName = itemsSec.getString(idxKey + ".type");
+                                    amount = itemsSec.getInt(idxKey + ".amount", 0);
+                                }
+                                if (typeName == null || amount <= 0) continue;
+                                try {
+                                    org.bukkit.Material mat = org.bukkit.Material.valueOf(typeName);
+                                    ItemStack stack = new ItemStack(mat, amount);
+                                    items.add(stack);
+                                } catch (IllegalArgumentException ignored2) {}
+                            }
+                        }
+                    }
+
+                    // As last resort, attempt raw list retrieval again
+                    if (items.isEmpty()) {
+                        List<?> raw = delSec.getList(userKey);
+                        if (raw != null && !raw.isEmpty()) {
+                            for (Object obj : raw) {
+                                if (obj instanceof ItemStack) {
+                                    items.add(((ItemStack) obj).clone());
+                                } else if (obj instanceof Map) {
+                                    @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) obj;
+                                    try { items.add(ItemStack.deserialize(map)); } catch (Exception ex) {
+                                        Object t = map.get("type");
+                                        Object a = map.get("amount");
+                                        if (t instanceof String && a instanceof Number) {
+                                            try {
+                                                org.bukkit.Material mat = org.bukkit.Material.valueOf((String) t);
+                                                items.add(new ItemStack(mat, ((Number) a).intValue()));
+                                            } catch (IllegalArgumentException ignored3) {}
+                                        }
+                                    }
+                                } else if (obj instanceof ConfigurationSection) {
+                                    ConfigurationSection sec = (ConfigurationSection) obj;
+                                    try { items.add(ItemStack.deserialize(sec.getValues(true))); } catch (Exception ex) {
+                                        String typeName = sec.getString("type");
+                                        int amount = sec.getInt("amount", 0);
+                                        if (typeName != null && amount > 0) {
+                                            try {
+                                                org.bukkit.Material mat = org.bukkit.Material.valueOf(typeName);
+                                                items.add(new ItemStack(mat, amount));
+                                            } catch (IllegalArgumentException ignored3) {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (!items.isEmpty()) {
+                        pendingDeliveries.put(userId, items);
+                        try { System.out.println("[OrderManager] DEBUG loaded deliveries for " + userId + ": " + items.size()); } catch (Throwable ignored) {}
+                    } else {
+                        try { System.out.println("[OrderManager] DEBUG no deliveries parsed for " + userId); } catch (Throwable ignored) {}
+                    }
                 } catch (Exception ignored) {
                 }
             }
