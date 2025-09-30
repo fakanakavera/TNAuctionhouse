@@ -12,7 +12,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public final class TNAuctionHousePlugin extends JavaPlugin {
+public class TNAuctionHousePlugin extends JavaPlugin {
 
     private static TNAuctionHousePlugin instance;
     private Economy economy;

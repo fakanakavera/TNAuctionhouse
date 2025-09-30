@@ -7,6 +7,9 @@ target/
 .vscode/
 *.iml
 
+# Local editor metadata
+.cursor/
+
 # OS/Java
 .DS_Store
 *.class
