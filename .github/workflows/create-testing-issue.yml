@@ -1,0 +1,61 @@
+name: Create testing issue
+
+on:
+  push:
+    branches:
+      - feat/tests-setup
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  create_issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or verify testing issue
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          title="Add testing infrastructure for plugin"
+          body="Set up test framework, coverage reporting, CI job, and example tests for the plugin. Deliverables: configured test runner, initial unit/integration tests, coverage threshold, CI workflow, and developer docs (README)."
+
+          echo "Checking for existing issue titled: $title"
+          existing=$(curl -sS -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GH_REPO}/issues?state=open&per_page=100")
+
+          if echo "$existing" | grep -F '"title": "' | grep -F "$title" >/dev/null; then
+            echo "Issue already exists. Skipping creation."
+            exit 0
+          fi
+
+          echo "Creating new issue..."
+          payload=$(cat <<'JSON'
+          {
+            "title": "Add testing infrastructure for plugin",
+            "body": "Set up test framework, coverage reporting, CI job, and example tests for the plugin. Deliverables: configured test runner, initial unit/integration tests, coverage threshold, CI workflow, and developer docs (README).",
+            "labels": ["testing", "enhancement"]
+          }
+          JSON
+          )
+
+          http_code=$(printf "%s" "$payload" | curl -sS -o /tmp/issue_resp.json -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GH_REPO}/issues" \
+            -d @-)
+
+          echo "HTTP: ${http_code}"
+          if [ "$http_code" != "201" ]; then
+            echo "Response:"
+            head -n 200 /tmp/issue_resp.json
+            exit 1
+          fi
+
+          url=$(sed -n 's/.*"html_url": "\([^"]*\)".*/\1/p' /tmp/issue_resp.json | head -n 1)
+          echo "Created: ${url}"
+
