@@ -273,7 +273,6 @@ public class OrderManager {
         if (!file.exists()) return;
 
         YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
-        try { System.out.println("[OrderManager] DEBUG load file=" + file.getAbsolutePath()); } catch (Throwable ignored) {}
 
 		ConfigurationSection sellSec = cfg.getConfigurationSection("sellOrders");
         if (sellSec != null) {
@@ -461,7 +460,6 @@ public class OrderManager {
 
 		ConfigurationSection delSec = cfg.getConfigurationSection("pendingDeliveries");
         if (delSec != null) {
-            try { System.out.println("[OrderManager] DEBUG pendingDeliveries keys=" + delSec.getKeys(false)); } catch (Throwable ignored) {}
             for (String userKey : delSec.getKeys(false)) {
                 try {
                     UUID userId = UUID.fromString(userKey);
@@ -575,9 +573,6 @@ public class OrderManager {
 
                     if (!items.isEmpty()) {
                         pendingDeliveries.put(userId, items);
-                        try { System.out.println("[OrderManager] DEBUG loaded deliveries for " + userId + ": " + items.size()); } catch (Throwable ignored) {}
-                    } else {
-                        try { System.out.println("[OrderManager] DEBUG no deliveries parsed for " + userId); } catch (Throwable ignored) {}
                     }
                 } catch (Exception ignored) {
                 }
