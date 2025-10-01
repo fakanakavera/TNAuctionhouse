@@ -12,6 +12,8 @@ public class Auction {
 	private final int startingPrice;
 	private final long createdAt;
 	private final long durationMs;
+	private UUID highestBidderId;
+	private int highestBid;
 
 	public Auction(UUID auctionId, UUID sellerId, ItemStack item, int amount, int startingPrice, long createdAt, long durationMs) {
 		this.auctionId = auctionId;
@@ -21,6 +23,8 @@ public class Auction {
 		this.startingPrice = startingPrice;
 		this.createdAt = createdAt;
 		this.durationMs = durationMs;
+		this.highestBidderId = null;
+		this.highestBid = 0;
 	}
 
 	public UUID getAuctionId() { return auctionId; }
@@ -30,8 +34,15 @@ public class Auction {
 	public int getStartingPrice() { return startingPrice; }
 	public long getCreatedAt() { return createdAt; }
 	public long getDurationMs() { return durationMs; }
+	public UUID getHighestBidderId() { return highestBidderId; }
+	public int getHighestBid() { return highestBid; }
 
 	public long getEndAt() { return createdAt + durationMs; }
+
+	public synchronized void setHighestBid(UUID bidderId, int bid) {
+		this.highestBidderId = bidderId;
+		this.highestBid = bid;
+	}
 }
 
 
