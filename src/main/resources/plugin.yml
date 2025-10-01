@@ -1,5 +1,5 @@
 name: TNauctionhouse
-version: 1.0.0-SNAPSHOT
+version: 0.1.3
 main: com.tnauctionhouse.TNAuctionHousePlugin
 api-version: '1.21'
 depend:
@@ -45,6 +45,7 @@ commands:
     usage: /<command> search <query> [sell|buy]
     permission: tnauctionhouse.auctionhouse
     aliases: [ah]
+  
 
 permissions:
   tnauctionhouse.sellorder:

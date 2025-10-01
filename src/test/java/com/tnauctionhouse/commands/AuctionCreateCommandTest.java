@@ -13,6 +13,7 @@ import org.mockbukkit.mockbukkit.command.ConsoleCommandSenderMock;
 import org.mockito.Mockito;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+ 
 
 public class AuctionCreateCommandTest {
 
@@ -62,5 +63,4 @@ public class AuctionCreateCommandTest {
 		Mockito.verify(player).sendMessage("Hold an item to auction.");
 	}
 }
-
 

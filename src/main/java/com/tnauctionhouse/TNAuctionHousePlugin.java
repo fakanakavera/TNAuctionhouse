@@ -126,6 +126,8 @@ public class TNAuctionHousePlugin extends JavaPlugin {
         economy = rsp.getProvider();
         return economy != null;
     }
+
+    
 }
 
 

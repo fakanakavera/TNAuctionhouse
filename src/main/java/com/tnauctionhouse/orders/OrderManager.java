@@ -71,6 +71,8 @@ public class OrderManager {
 		return paginate(filtered, page, pageSize);
 	}
 
+    
+
 	public List<BuyOrder> searchBuyOrders(String query, int page, int pageSize) {
 		if (query == null) query = "";
 		final String q = query.toLowerCase();
@@ -205,15 +207,15 @@ public class OrderManager {
             cfg.set(base + ".item", order.getItem().serialize());
         }
 
-		for (BuyOrder order : buyOrders) {
-            String base = "buyOrders." + order.getOrderId();
-            cfg.set(base + ".buyerId", order.getBuyerId().toString());
-			cfg.set(base + ".pricePerUnit", order.getPricePerUnit());
-            cfg.set(base + ".amount", order.getAmount());
-            cfg.set(base + ".createdAt", order.getCreatedAt());
-			cfg.set(base + ".escrowTotal", order.getEscrowTotal());
-            cfg.set(base + ".templateItem", order.getTemplateItem().serialize());
-        }
+		for (BuyOrder bo : buyOrders) {
+			String base = "buyOrders." + bo.getOrderId();
+			cfg.set(base + ".buyerId", bo.getBuyerId().toString());
+			cfg.set(base + ".pricePerUnit", bo.getPricePerUnit());
+			cfg.set(base + ".amount", bo.getAmount());
+			cfg.set(base + ".createdAt", bo.getCreatedAt());
+			cfg.set(base + ".escrowTotal", bo.getEscrowTotal());
+			cfg.set(base + ".templateItem", bo.getTemplateItem().serialize());
+		}
 
         for (Auction auction : auctions) {
             String base = "auctions." + auction.getAuctionId();
@@ -252,7 +254,6 @@ public class OrderManager {
         if (!file.exists()) return;
 
         YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
-        try { System.out.println("[OrderManager] DEBUG load file=" + file.getAbsolutePath()); } catch (Throwable ignored) {}
 
 		ConfigurationSection sellSec = cfg.getConfigurationSection("sellOrders");
         if (sellSec != null) {
@@ -404,7 +405,6 @@ public class OrderManager {
 
         ConfigurationSection delSec = cfg.getConfigurationSection("pendingDeliveries");
         if (delSec != null) {
-            try { System.out.println("[OrderManager] DEBUG pendingDeliveries keys=" + delSec.getKeys(false)); } catch (Throwable ignored) {}
             for (String userKey : delSec.getKeys(false)) {
                 try {
                     UUID userId = UUID.fromString(userKey);
@@ -518,9 +518,6 @@ public class OrderManager {
 
                     if (!items.isEmpty()) {
                         pendingDeliveries.put(userId, items);
-                        try { System.out.println("[OrderManager] DEBUG loaded deliveries for " + userId + ": " + items.size()); } catch (Throwable ignored) {}
-                    } else {
-                        try { System.out.println("[OrderManager] DEBUG no deliveries parsed for " + userId); } catch (Throwable ignored) {}
                     }
                 } catch (Exception ignored) {
                 }
