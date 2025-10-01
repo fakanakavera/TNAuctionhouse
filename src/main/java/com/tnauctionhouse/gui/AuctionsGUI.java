@@ -32,11 +32,17 @@ public class AuctionsGUI extends BaseOrdersGUI {
 				display.setItemMeta(meta);
 				long msLeft = Math.max(0L, auction.getEndAt() - now);
 				String timeLeft = formatDuration(msLeft);
-				setLore(display, java.util.Arrays.asList(
-					"Amount: " + auction.getAmount(),
-					"Starting Price: $" + auction.getStartingPrice(),
-					"Time left: " + timeLeft
-				));
+				java.util.List<String> lore = new java.util.ArrayList<>();
+				lore.add("Amount: " + auction.getAmount());
+				lore.add("Starting Price: $" + auction.getStartingPrice());
+				if (auction.getHighestBid() > 0) lore.add("Top Bid: $" + auction.getHighestBid());
+				lore.add("Time left: " + timeLeft);
+				if (auction.getSellerId().equals(viewer.getUniqueId())) {
+					lore.add("Your auction (no bidding)");
+				} else {
+					lore.add("Click to bid");
+				}
+				setLore(display, lore);
 			}
 			display.setAmount(Math.min(auction.getAmount(), display.getMaxStackSize()));
 			inv.setItem(slot++, display);
@@ -51,7 +57,13 @@ public class AuctionsGUI extends BaseOrdersGUI {
 		if (clickedItem == null || clickedItem.getType() == Material.AIR) return;
 		if (rawSlot == 45) { if (page > 0) new AuctionsGUI(plugin, viewer, page - 1).open(); return; }
 		if (rawSlot == 53) { new AuctionsGUI(plugin, viewer, page + 1).open(); return; }
-		// No bidding implementation provided; read-only viewer for now
+		int index = rawSlot;
+		java.util.List<Auction> pageAuctions = plugin.getOrderManager().getAuctionsPage(page, 45);
+		if (index < 0 || index >= pageAuctions.size()) return;
+		Auction auction = pageAuctions.get(index);
+		// Prevent bidding on your own auction
+		if (auction.getSellerId().equals(viewer.getUniqueId())) { viewer.sendMessage("You cannot bid on your own auction."); return; }
+		new com.tnauctionhouse.gui.prompt.BidAmountPrompt(plugin, viewer, auction, page).begin();
 	}
 
 	private String formatDuration(long ms) {

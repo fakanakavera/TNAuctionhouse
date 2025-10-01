@@ -99,6 +99,46 @@ public class TNAuctionHousePlugin extends JavaPlugin {
 		if (getCommand("myorders") != null) {
             getCommand("myorders").setExecutor(new com.tnauctionhouse.commands.OpenMyOrdersCommand(this));
         }
+
+		// Periodic settlement of ended auctions: pay seller and deliver item to winner, or return to seller if no bids
+		getServer().getScheduler().runTaskTimer(this, () -> {
+			long now = System.currentTimeMillis();
+			java.util.List<com.tnauctionhouse.orders.Auction> ended = new java.util.ArrayList<>();
+			for (com.tnauctionhouse.orders.Auction auc : orderManager.getAuctions()) {
+				if (now >= auc.getEndAt()) ended.add(auc);
+			}
+			if (ended.isEmpty()) return;
+			net.milkbowl.vault.economy.Economy econ = getEconomy();
+			for (com.tnauctionhouse.orders.Auction auc : ended) {
+				try {
+					java.util.UUID winnerId = auc.getHighestBidderId();
+					int winningBid = auc.getHighestBid();
+					if (winnerId != null && winningBid > 0) {
+						org.bukkit.OfflinePlayer seller = getServer().getOfflinePlayer(auc.getSellerId());
+						econ.depositPlayer(seller, winningBid);
+						org.bukkit.OfflinePlayer winner = getServer().getOfflinePlayer(winnerId);
+						org.bukkit.inventory.ItemStack stack = auc.getItem().clone();
+						stack.setAmount(auc.getAmount());
+						if (winner.isOnline() && winner.getPlayer() != null) {
+							java.util.Map<Integer, org.bukkit.inventory.ItemStack> leftovers = winner.getPlayer().getInventory().addItem(stack);
+							for (org.bukkit.inventory.ItemStack it : leftovers.values()) orderManager.enqueueDelivery(winner.getUniqueId(), it);
+							if (!leftovers.isEmpty()) winner.getPlayer().sendMessage("Inventory full. Some items were sent to withdrawal.");
+						} else {
+							orderManager.enqueueDelivery(winner.getUniqueId(), stack);
+						}
+						if (seller.isOnline() && seller.getPlayer() != null) seller.getPlayer().sendMessage("Your auction sold for $" + winningBid + ".");
+					} else {
+						// No bids: return to seller
+						org.bukkit.inventory.ItemStack back = auc.getItem().clone();
+						back.setAmount(auc.getAmount());
+						orderManager.enqueueDelivery(auc.getSellerId(), back);
+					}
+				} finally {
+					orderManager.removeAuction(auc);
+				}
+			}
+			try { orderManager.save(new java.io.File(getDataFolder(), "orders.yml")); } catch (Exception ignored) {}
+		}, 20L * 60L, 20L * 60L);
     }
 
     @Override

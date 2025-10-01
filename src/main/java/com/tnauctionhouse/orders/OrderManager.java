@@ -224,6 +224,8 @@ public class OrderManager {
             cfg.set(base + ".startingPrice", auction.getStartingPrice());
             cfg.set(base + ".createdAt", auction.getCreatedAt());
             cfg.set(base + ".durationMs", auction.getDurationMs());
+            cfg.set(base + ".highestBid", auction.getHighestBid());
+            cfg.set(base + ".highestBidderId", auction.getHighestBidderId() == null ? null : auction.getHighestBidderId().toString());
             cfg.set(base + ".item", auction.getItem().serialize());
         }
 
@@ -384,6 +386,10 @@ public class OrderManager {
                     int startingPrice = aucSec.getInt(key + ".startingPrice", 1);
                     long createdAt = aucSec.getLong(key + ".createdAt");
                     long durationMs = aucSec.getLong(key + ".durationMs", 7L * 24L * 60L * 60L * 1000L);
+                    int highestBid = aucSec.getInt(key + ".highestBid", 0);
+                    String hbStr = aucSec.getString(key + ".highestBidderId");
+                    UUID highestBidderId = null;
+                    if (hbStr != null) { try { highestBidderId = UUID.fromString(hbStr); } catch (Exception ignored) {} }
                     Object node = aucSec.get(key + ".item");
                     ItemStack item = null;
                     try {
@@ -398,7 +404,9 @@ public class OrderManager {
                         }
                     } catch (Exception ex) { item = null; }
                     if (item == null) continue;
-                    auctions.add(new Auction(auctionId, sellerId, item, amount, startingPrice, createdAt, durationMs));
+                    Auction auc = new Auction(auctionId, sellerId, item, amount, startingPrice, createdAt, durationMs);
+                    if (highestBidderId != null && highestBid > 0) auc.setHighestBid(highestBidderId, highestBid);
+                    auctions.add(auc);
                 } catch (Exception ignored) {}
             }
         }
