@@ -52,7 +52,6 @@ public class TNAuctionHousePluginLifecycleTest {
         assertNotNull(server.getCommandMap().getCommand("sellorders"));
         assertNotNull(server.getCommandMap().getCommand("buyorders"));
         assertNotNull(server.getCommandMap().getCommand("withdrawitems"));
-        assertNotNull(server.getCommandMap().getCommand("auctionhouse"));
         assertNotNull(server.getCommandMap().getCommand("myorders"));
         // New auction commands
         assertNotNull(server.getCommandMap().getCommand("auction"));

@@ -40,11 +40,7 @@ commands:
     description: Open the auctions browser.
     usage: /<command>
     permission: tnauctionhouse.auctions
-  auctionhouse:
-    description: Search auction house listings
-    usage: /<command> search <query> [sell|buy]
-    permission: tnauctionhouse.auctionhouse
-    aliases: [ah]
+  
   
 
 permissions:
@@ -62,8 +58,7 @@ permissions:
     default: true
   tnauctionhouse.myorders:
     default: true
-  tnauctionhouse.auctionhouse:
-    default: true
+  
   tnauctionhouse.auction.create:
     default: true
   tnauctionhouse.auctions:

@@ -1,7 +1,7 @@
 package com.tnauctionhouse.commands;
 
 import com.tnauctionhouse.TNAuctionHousePlugin;
-import com.tnauctionhouse.gui.prompt.ChatAmountPrompt;
+import com.tnauctionhouse.orders.Auction;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -33,7 +33,28 @@ public class AuctionCreateCommand implements CommandExecutor {
 			return true;
 		}
 
-		new ChatAmountPrompt(plugin, player, hand).begin();
+		if (args.length < 1) {
+			player.sendMessage("Usage: /" + label + " <amount>");
+			return true;
+		}
+
+		int amount;
+		try { amount = Integer.parseInt(args[0]); } catch (NumberFormatException ex) { player.sendMessage("Invalid amount."); return true; }
+		if (amount <= 0) { player.sendMessage("Amount must be > 0."); return true; }
+		if (amount > hand.getAmount()) { player.sendMessage("You don't have that many items."); return true; }
+
+		// Create auction at starting price 1, duration 7 days
+		int startingPrice = 1;
+		long durationMs = 7L * 24L * 60L * 60L * 1000L;
+		ItemStack auctionItem = hand.clone();
+		auctionItem.setAmount(amount);
+		Auction auction = new Auction(java.util.UUID.randomUUID(), player.getUniqueId(), auctionItem, amount, startingPrice, System.currentTimeMillis(), durationMs);
+		plugin.getOrderManager().addAuction(auction);
+
+		// Remove items from player hand
+		hand.setAmount(hand.getAmount() - amount);
+		player.getInventory().setItemInMainHand(hand);
+		player.sendMessage("Created auction: " + amount + "x at starting price $" + startingPrice + ".");
 		return true;
 	}
 
@@ -42,5 +63,4 @@ public class AuctionCreateCommand implements CommandExecutor {
 		return material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR;
 	}
 }
-
 

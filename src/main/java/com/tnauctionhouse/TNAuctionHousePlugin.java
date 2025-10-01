@@ -91,14 +91,12 @@ public class TNAuctionHousePlugin extends JavaPlugin {
 		if (getCommand("auctions") != null) {
 			getCommand("auctions").setExecutor(new com.tnauctionhouse.commands.OpenAuctionsCommand(this));
 		}
-        if (getCommand("auctionhouse") != null) {
-            getCommand("auctionhouse").setExecutor(new com.tnauctionhouse.commands.AuctionHouseCommand(this));
-        }
+		// removed auctionhouse search command in favor of GUI-only flow
         if (getCommand("withdrawitems") != null) {
             getCommand("withdrawitems").setExecutor(new com.tnauctionhouse.commands.WithdrawOrderCommand(this));
         }
         // '/ah' alias provided via plugin.yml
-        if (getCommand("myorders") != null) {
+		if (getCommand("myorders") != null) {
             getCommand("myorders").setExecutor(new com.tnauctionhouse.commands.OpenMyOrdersCommand(this));
         }
     }
