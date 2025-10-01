@@ -3,8 +3,11 @@ name: CI - Tests
 on:
   push:
     branches:
-      - feat/tests-setup
+      - main
+      - feature/**
+      - feature/auction-selling
   pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
