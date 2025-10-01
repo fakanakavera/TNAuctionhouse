@@ -54,6 +54,10 @@ public class TNAuctionHousePluginLifecycleTest {
         assertNotNull(server.getCommandMap().getCommand("withdrawitems"));
         assertNotNull(server.getCommandMap().getCommand("auctionhouse"));
         assertNotNull(server.getCommandMap().getCommand("myorders"));
+        // New auction commands
+        assertNotNull(server.getCommandMap().getCommand("auction"));
+        assertNotNull(server.getCommandMap().getCommand("auctionbid"));
+        assertNotNull(server.getCommandMap().getCommand("auctions"));
     }
 
     // Minimal Economy stub sufficient for plugin boot and simple has/withdraw/deposit used in code
