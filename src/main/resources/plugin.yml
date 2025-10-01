@@ -37,6 +37,18 @@ commands:
     usage: /<command> search <query> [sell|buy]
     permission: tnauctionhouse.auctionhouse
     aliases: [ah]
+  auction:
+    description: Create an auction for the item in hand.
+    usage: /<command> <amount>
+    permission: tnauctionhouse.auction
+  auctionbid:
+    description: Place a bid on an auction.
+    usage: /<command> <auctionId> <amount>
+    permission: tnauctionhouse.bid
+  auctions:
+    description: List active auctions.
+    usage: /<command> [page]
+    permission: tnauctionhouse.auctions
 
 permissions:
   tnauctionhouse.sellorder:
@@ -54,5 +66,11 @@ permissions:
   tnauctionhouse.myorders:
     default: true
   tnauctionhouse.auctionhouse:
+    default: true
+  tnauctionhouse.auction:
+    default: true
+  tnauctionhouse.bid:
+    default: true
+  tnauctionhouse.auctions:
     default: true
 

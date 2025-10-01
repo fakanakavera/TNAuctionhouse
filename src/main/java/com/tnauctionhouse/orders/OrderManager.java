@@ -18,6 +18,7 @@ public class OrderManager {
 
     private final List<SellOrder> sellOrders = new CopyOnWriteArrayList<>();
     private final List<BuyOrder> buyOrders = new CopyOnWriteArrayList<>();
+	private final List<AuctionOrder> auctionOrders = new CopyOnWriteArrayList<>();
     private final Map<UUID, List<ItemStack>> pendingDeliveries = new HashMap<>();
 
     public List<SellOrder> getSellOrders() {
@@ -27,6 +28,10 @@ public class OrderManager {
     public List<BuyOrder> getBuyOrders() {
         return Collections.unmodifiableList(buyOrders);
     }
+
+	public List<AuctionOrder> getAuctionOrders() {
+		return Collections.unmodifiableList(auctionOrders);
+	}
 
 	public SellOrder createSellOrder(UUID sellerId, ItemStack item, int pricePerUnit, int amount) {
         ItemStack clone = item.clone();
@@ -52,6 +57,10 @@ public class OrderManager {
         return paginate(buyOrders, page, pageSize);
     }
 
+	public List<AuctionOrder> getAuctionOrdersPage(int page, int pageSize) {
+		return paginate(auctionOrders, page, pageSize);
+	}
+
 	public List<SellOrder> searchSellOrders(String query, int page, int pageSize) {
 		if (query == null) query = "";
 		final String q = query.toLowerCase();
@@ -62,6 +71,23 @@ public class OrderManager {
 			}
 		}
 		return paginate(filtered, page, pageSize);
+	}
+
+	public AuctionOrder createAuctionOrder(UUID sellerId, ItemStack item, int amount, long durationMillis) {
+		ItemStack clone = item.clone();
+		clone.setAmount(amount);
+		long now = System.currentTimeMillis();
+		long endAt = now + Math.max(0L, durationMillis);
+		AuctionOrder order = new AuctionOrder(UUID.randomUUID(), sellerId, clone, amount, now, endAt, 1, null, 0);
+		auctionOrders.add(order);
+		return order;
+	}
+
+	public AuctionOrder getAuctionById(UUID orderId) {
+		for (AuctionOrder ao : auctionOrders) {
+			if (ao.getOrderId().equals(orderId)) return ao;
+		}
+		return null;
 	}
 
 	public List<BuyOrder> searchBuyOrders(String query, int page, int pageSize) {
@@ -140,6 +166,10 @@ public class OrderManager {
         buyOrders.remove(order);
     }
 
+	public void removeAuctionOrder(AuctionOrder order) {
+		auctionOrders.remove(order);
+	}
+
     public synchronized void enqueueDelivery(UUID recipient, ItemStack item) {
         ItemStack clone = item.clone();
         pendingDeliveries.computeIfAbsent(recipient, k -> new ArrayList<>()).add(clone);
@@ -195,15 +225,27 @@ public class OrderManager {
             cfg.set(base + ".item", order.getItem().serialize());
         }
 
-		for (BuyOrder order : buyOrders) {
-            String base = "buyOrders." + order.getOrderId();
-            cfg.set(base + ".buyerId", order.getBuyerId().toString());
-			cfg.set(base + ".pricePerUnit", order.getPricePerUnit());
-            cfg.set(base + ".amount", order.getAmount());
-            cfg.set(base + ".createdAt", order.getCreatedAt());
-			cfg.set(base + ".escrowTotal", order.getEscrowTotal());
-            cfg.set(base + ".templateItem", order.getTemplateItem().serialize());
-        }
+		for (BuyOrder bo : buyOrders) {
+			String base = "buyOrders." + bo.getOrderId();
+			cfg.set(base + ".buyerId", bo.getBuyerId().toString());
+			cfg.set(base + ".pricePerUnit", bo.getPricePerUnit());
+			cfg.set(base + ".amount", bo.getAmount());
+			cfg.set(base + ".createdAt", bo.getCreatedAt());
+			cfg.set(base + ".escrowTotal", bo.getEscrowTotal());
+			cfg.set(base + ".templateItem", bo.getTemplateItem().serialize());
+		}
+
+		for (AuctionOrder ao : auctionOrders) {
+			String base = "auctions." + ao.getOrderId();
+			cfg.set(base + ".sellerId", ao.getSellerId().toString());
+			cfg.set(base + ".amount", ao.getAmount());
+			cfg.set(base + ".createdAt", ao.getCreatedAt());
+			cfg.set(base + ".endAt", ao.getEndAt());
+			cfg.set(base + ".startPrice", ao.getStartPrice());
+			cfg.set(base + ".highestBid", ao.getHighestBid());
+			cfg.set(base + ".highestBidderId", ao.getHighestBidderId() == null ? null : ao.getHighestBidderId().toString());
+			cfg.set(base + ".item", ao.getItem().serialize());
+		}
 
         for (Map.Entry<UUID, List<ItemStack>> entry : pendingDeliveries.entrySet()) {
             // Preferred: list of serialized maps
@@ -352,7 +394,72 @@ public class OrderManager {
             }
         }
 
-        ConfigurationSection delSec = cfg.getConfigurationSection("pendingDeliveries");
+		ConfigurationSection aucSec = cfg.getConfigurationSection("auctions");
+		if (aucSec != null) {
+			for (String key : aucSec.getKeys(false)) {
+				try {
+					UUID orderId = UUID.fromString(key);
+					UUID sellerId = UUID.fromString(aucSec.getString(key + ".sellerId"));
+					int amount = aucSec.getInt(key + ".amount");
+					long createdAt = aucSec.getLong(key + ".createdAt");
+					long endAt = aucSec.getLong(key + ".endAt");
+					int startPrice = aucSec.getInt(key + ".startPrice", 1);
+					int highestBid = aucSec.getInt(key + ".highestBid", 0);
+					String hbStr = aucSec.getString(key + ".highestBidderId");
+					UUID highestBidderId = null;
+					if (hbStr != null) {
+						try { highestBidderId = UUID.fromString(hbStr); } catch (Exception ignored) {}
+					}
+					Object node = aucSec.get(key + ".item");
+					ItemStack item = null;
+					try {
+						if (node instanceof ItemStack) {
+							item = ((ItemStack) node).clone();
+						} else if (node instanceof java.util.Map) {
+							@SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) node;
+							item = ItemStack.deserialize(map);
+						} else if (node instanceof org.bukkit.configuration.ConfigurationSection) {
+							org.bukkit.configuration.ConfigurationSection sec = (org.bukkit.configuration.ConfigurationSection) node;
+							item = ItemStack.deserialize(sec.getValues(true));
+						}
+					} catch (Exception ex) {
+						item = null;
+					}
+					if (item == null) {
+						Object raw = aucSec.get(key + ".item");
+						if (raw instanceof Map) {
+							@SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) raw;
+							Object t = map.get("type");
+							Object a = map.get("amount");
+							if (t instanceof String) {
+								try {
+									org.bukkit.Material mat = org.bukkit.Material.valueOf((String) t);
+									int amt = (a instanceof Number) ? ((Number) a).intValue() : 1;
+									if (amt <= 0) amt = 1;
+									item = new ItemStack(mat, amt);
+								} catch (IllegalArgumentException ignored2) {}
+							}
+						} else if (raw instanceof org.bukkit.configuration.ConfigurationSection) {
+							org.bukkit.configuration.ConfigurationSection sec = (org.bukkit.configuration.ConfigurationSection) raw;
+							String typeName = sec.getString("type");
+							int amt = sec.getInt("amount", 1);
+							if (amt <= 0) amt = 1;
+							if (typeName != null) {
+								try {
+									org.bukkit.Material mat = org.bukkit.Material.valueOf(typeName);
+									item = new ItemStack(mat, amt);
+								} catch (IllegalArgumentException ignored2) {}
+							}
+						}
+					}
+					if (item == null) continue;
+					auctionOrders.add(new AuctionOrder(orderId, sellerId, item, amount, createdAt, endAt, startPrice, highestBidderId, highestBid));
+				} catch (Exception ignored) {
+				}
+			}
+		}
+
+		ConfigurationSection delSec = cfg.getConfigurationSection("pendingDeliveries");
         if (delSec != null) {
             try { System.out.println("[OrderManager] DEBUG pendingDeliveries keys=" + delSec.getKeys(false)); } catch (Throwable ignored) {}
             for (String userKey : delSec.getKeys(false)) {
