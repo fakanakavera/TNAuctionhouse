@@ -59,6 +59,24 @@ public class TNAuctionHousePlugin extends JavaPlugin {
             getLogger().warning("Failed to load orders: " + ex.getMessage());
         }
 
+		// Schedule periodic cleanup for expired auctions -> return items to seller deliveries
+		Bukkit.getScheduler().runTaskTimer(this, () -> {
+			try {
+				long now = System.currentTimeMillis();
+				java.util.List<com.tnauctionhouse.orders.Auction> toRemove = new java.util.ArrayList<>();
+				for (com.tnauctionhouse.orders.Auction auc : orderManager.getAuctions()) {
+					if (auc.getEndAt() <= now) {
+						// enqueue back to seller
+						org.bukkit.inventory.ItemStack back = auc.getItem().clone();
+						back.setAmount(auc.getAmount());
+						orderManager.enqueueDelivery(auc.getSellerId(), back);
+						toRemove.add(auc);
+					}
+				}
+				for (com.tnauctionhouse.orders.Auction auc : toRemove) orderManager.removeAuction(auc);
+			} catch (Throwable ignored) {}
+		}, 20L * 60L, 20L * 60L);
+
         orderLogger = new OrderLogger(this);
         notificationManager = new NotificationManager(this);
 
@@ -67,6 +85,12 @@ public class TNAuctionHousePlugin extends JavaPlugin {
         getCommand("buyorder").setExecutor(new BuyOrderCreateCommand(this));
         getCommand("sellorders").setExecutor(new OpenSellOrdersCommand(this));
         getCommand("buyorders").setExecutor(new OpenBuyOrdersCommand(this));
+		if (getCommand("auction") != null) {
+			getCommand("auction").setExecutor(new com.tnauctionhouse.commands.AuctionCreateCommand(this));
+		}
+		if (getCommand("auctions") != null) {
+			getCommand("auctions").setExecutor(new com.tnauctionhouse.commands.OpenAuctionsCommand(this));
+		}
         if (getCommand("auctionhouse") != null) {
             getCommand("auctionhouse").setExecutor(new com.tnauctionhouse.commands.AuctionHouseCommand(this));
         }

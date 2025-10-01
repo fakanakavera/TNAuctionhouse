@@ -18,6 +18,7 @@ public class OrderManager {
 
     private final List<SellOrder> sellOrders = new CopyOnWriteArrayList<>();
     private final List<BuyOrder> buyOrders = new CopyOnWriteArrayList<>();
+    private final List<Auction> auctions = new CopyOnWriteArrayList<>();
     private final Map<UUID, List<ItemStack>> pendingDeliveries = new HashMap<>();
 
     public List<SellOrder> getSellOrders() {
@@ -27,6 +28,8 @@ public class OrderManager {
     public List<BuyOrder> getBuyOrders() {
         return Collections.unmodifiableList(buyOrders);
     }
+
+    public List<Auction> getAuctions() { return Collections.unmodifiableList(auctions); }
 
 	public SellOrder createSellOrder(UUID sellerId, ItemStack item, int pricePerUnit, int amount) {
         ItemStack clone = item.clone();
@@ -50,6 +53,10 @@ public class OrderManager {
 
     public List<BuyOrder> getBuyOrdersPage(int page, int pageSize) {
         return paginate(buyOrders, page, pageSize);
+    }
+
+    public List<Auction> getAuctionsPage(int page, int pageSize) {
+        return paginate(auctions, page, pageSize);
     }
 
 	public List<SellOrder> searchSellOrders(String query, int page, int pageSize) {
@@ -140,6 +147,9 @@ public class OrderManager {
         buyOrders.remove(order);
     }
 
+    public void addAuction(Auction auction) { auctions.add(auction); }
+    public void removeAuction(Auction auction) { auctions.remove(auction); }
+
     public synchronized void enqueueDelivery(UUID recipient, ItemStack item) {
         ItemStack clone = item.clone();
         pendingDeliveries.computeIfAbsent(recipient, k -> new ArrayList<>()).add(clone);
@@ -205,6 +215,16 @@ public class OrderManager {
             cfg.set(base + ".templateItem", order.getTemplateItem().serialize());
         }
 
+        for (Auction auction : auctions) {
+            String base = "auctions." + auction.getAuctionId();
+            cfg.set(base + ".sellerId", auction.getSellerId().toString());
+            cfg.set(base + ".amount", auction.getAmount());
+            cfg.set(base + ".startingPrice", auction.getStartingPrice());
+            cfg.set(base + ".createdAt", auction.getCreatedAt());
+            cfg.set(base + ".durationMs", auction.getDurationMs());
+            cfg.set(base + ".item", auction.getItem().serialize());
+        }
+
         for (Map.Entry<UUID, List<ItemStack>> entry : pendingDeliveries.entrySet()) {
             // Preferred: list of serialized maps
             List<Map<String, Object>> serialized = new ArrayList<>(entry.getValue().size());
@@ -227,6 +247,7 @@ public class OrderManager {
     public synchronized void load(File file) throws IOException {
         sellOrders.clear();
         buyOrders.clear();
+        auctions.clear();
         pendingDeliveries.clear();
         if (!file.exists()) return;
 
@@ -349,6 +370,35 @@ public class OrderManager {
                     buyOrders.add(new BuyOrder(orderId, buyerId, tpl, price, amount, createdAt, escrowTotal));
                 } catch (Exception ignored) {
                 }
+            }
+        }
+
+        ConfigurationSection aucSec = cfg.getConfigurationSection("auctions");
+        if (aucSec != null) {
+            for (String key : aucSec.getKeys(false)) {
+                try {
+                    UUID auctionId = UUID.fromString(key);
+                    UUID sellerId = UUID.fromString(aucSec.getString(key + ".sellerId"));
+                    int amount = aucSec.getInt(key + ".amount");
+                    int startingPrice = aucSec.getInt(key + ".startingPrice", 1);
+                    long createdAt = aucSec.getLong(key + ".createdAt");
+                    long durationMs = aucSec.getLong(key + ".durationMs", 7L * 24L * 60L * 60L * 1000L);
+                    Object node = aucSec.get(key + ".item");
+                    ItemStack item = null;
+                    try {
+                        if (node instanceof ItemStack) {
+                            item = ((ItemStack) node).clone();
+                        } else if (node instanceof java.util.Map) {
+                            @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) node;
+                            item = ItemStack.deserialize(map);
+                        } else if (node instanceof org.bukkit.configuration.ConfigurationSection) {
+                            org.bukkit.configuration.ConfigurationSection sec = (org.bukkit.configuration.ConfigurationSection) node;
+                            item = ItemStack.deserialize(sec.getValues(true));
+                        }
+                    } catch (Exception ex) { item = null; }
+                    if (item == null) continue;
+                    auctions.add(new Auction(auctionId, sellerId, item, amount, startingPrice, createdAt, durationMs));
+                } catch (Exception ignored) {}
             }
         }
 
