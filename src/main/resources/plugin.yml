@@ -32,23 +32,20 @@ commands:
     description: Withdraw items from fulfilled buy orders.
     usage: /<command>
     permission: tnauctionhouse.withdrawitems
+  auction:
+    description: Put the item in hand up for auction (chat amount).
+    usage: /<command>
+    permission: tnauctionhouse.auction.create
+  auctions:
+    description: Open the auctions browser.
+    usage: /<command>
+    permission: tnauctionhouse.auctions
   auctionhouse:
     description: Search auction house listings
     usage: /<command> search <query> [sell|buy]
     permission: tnauctionhouse.auctionhouse
     aliases: [ah]
-  auction:
-    description: Create an auction for the item in hand.
-    usage: /<command> <amount>
-    permission: tnauctionhouse.auction
-  auctionbid:
-    description: Place a bid on an auction.
-    usage: /<command> <auctionId> <amount>
-    permission: tnauctionhouse.bid
-  auctions:
-    description: List active auctions.
-    usage: /<command> [page]
-    permission: tnauctionhouse.auctions
+  
 
 permissions:
   tnauctionhouse.sellorder:
@@ -67,9 +64,7 @@ permissions:
     default: true
   tnauctionhouse.auctionhouse:
     default: true
-  tnauctionhouse.auction:
-    default: true
-  tnauctionhouse.bid:
+  tnauctionhouse.auction.create:
     default: true
   tnauctionhouse.auctions:
     default: true
