@@ -4,6 +4,7 @@ import com.tnauctionhouse.TNAuctionHousePlugin;
 import com.tnauctionhouse.orders.AuctionOrder;
 import com.tnauctionhouse.orders.OrderManager;
 import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -20,6 +21,7 @@ import org.mockito.stubbing.Answer;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -78,20 +80,23 @@ public class AuctionBidAndListCommandTest {
         when(p1.hasPermission("tnauctionhouse.bid")).thenReturn(true);
         when(economy.has(p1, 5)).thenReturn(true);
         when(p1.hasPermission("tnauctionhouse.bypass.self")).thenReturn(false);
+        when(economy.withdrawPlayer(p1, 5.0)).thenReturn(new EconomyResponse(5.0, 0, EconomyResponse.ResponseType.SUCCESS, ""));
 
         boolean r1 = bidCommand.onCommand(p1, null, "auctionbid", new String[] {ao.getOrderId().toString(), "5"});
         assertEquals(true, r1);
-        Mockito.verify(economy).withdrawPlayer(p1, 5);
+        Mockito.verify(economy).withdrawPlayer(p1, 5.0);
 
         // Second bidder outbids; previous refunded
         Player p2 = Mockito.mock(Player.class, Mockito.RETURNS_DEEP_STUBS);
         when(p2.getUniqueId()).thenReturn(UUID.randomUUID());
         when(p2.hasPermission("tnauctionhouse.bid")).thenReturn(true);
         when(economy.has(p2, 8)).thenReturn(true);
+        when(economy.withdrawPlayer(p2, 8.0)).thenReturn(new EconomyResponse(8.0, 0, EconomyResponse.ResponseType.SUCCESS, ""));
+        when(economy.depositPlayer(any(OfflinePlayer.class), eq(5.0))).thenReturn(new EconomyResponse(5.0, 0, EconomyResponse.ResponseType.SUCCESS, ""));
 
         boolean r2 = bidCommand.onCommand(p2, null, "auctionbid", new String[] {ao.getOrderId().toString(), "8"});
         assertEquals(true, r2);
-        Mockito.verify(economy).withdrawPlayer(p2, 8);
+        Mockito.verify(economy).withdrawPlayer(p2, 8.0);
 
         // Verify a deposit was made to an OfflinePlayer with p1's UUID
         ArgumentCaptor<OfflinePlayer> captor = ArgumentCaptor.forClass(OfflinePlayer.class);
@@ -111,13 +116,15 @@ public class AuctionBidAndListCommandTest {
         when(p.hasPermission("tnauctionhouse.bypass.self")).thenReturn(false);
         when(economy.has(p, 6)).thenReturn(true);
 
-        // When withdraw happens, another bid appears making latest > amount
+        // When withdraw happens, another bid appears making latest > amount. The command should
+        // detect this under the lock and immediately refund the new bidder, not touch previous bidder.
         Mockito.doAnswer((Answer<Object>) invocation -> {
             int amt = ((Number) invocation.getArguments()[1]).intValue();
             ao.setHighestBid(amt + 1);
             ao.setHighestBidderId(UUID.randomUUID());
-            return null;
+            return new EconomyResponse(amt, 0, EconomyResponse.ResponseType.SUCCESS, "");
         }).when(economy).withdrawPlayer(eq(p), eq(6.0));
+        when(economy.depositPlayer(p, 6.0)).thenReturn(new EconomyResponse(6.0, 0, EconomyResponse.ResponseType.SUCCESS, ""));
 
         boolean res = bidCommand.onCommand(p, null, "auctionbid", new String[] {ao.getOrderId().toString(), "6"});
         assertEquals(true, res);
